@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# Error handling trap
+trap 'echo -e "\n${RED}[!] Build script aborted or encountered an error at line ${BASH_LINENO[0]:-unknown}.${RESET}"' ERR INT TERM
+
 # Text styling
 BOLD="\033[1m"
 GREEN="\033[0;32m"
@@ -67,6 +70,10 @@ cd "$SCRIPT_DIR"
 
 print_banner
 
+if [[ "$AUTO_MODE" == true ]]; then
+  echo -e "${CYAN}Mode: Non-interactive / Automated (--auto)${RESET}\n"
+fi
+
 # ------------------------------------------------------------------------------
 # 1. System Dependency Checks
 # ------------------------------------------------------------------------------
@@ -76,12 +83,18 @@ detect_missing_packages() {
   local missing=()
   if ! command -v python3 &>/dev/null; then
     missing+=("python3")
+  elif ! python3 -c "import venv, ensurepip" &>/dev/null; then
+    missing+=("python3-venv")
   fi
   if ! command -v git &>/dev/null; then
     missing+=("git")
   fi
   if ! command -v gcc &>/dev/null && ! command -v clang &>/dev/null; then
-    missing+=("build-essential" "gcc")
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      missing+=("xcode-cli-tools")
+    else
+      missing+=("build-essential")
+    fi
   fi
   echo "${missing[@]}"
 }
@@ -98,6 +111,11 @@ if [[ -n "$MISSING_DEPS" ]]; then
     echo "  sudo pacman -S python git base-devel"
   elif command -v brew &>/dev/null; then
     echo "  brew install python git"
+  elif [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "  xcode-select --install"
+    echo "  brew install python git"
+  else
+    echo "  Ensure Python 3.10+ (with venv), Git, and a C compiler (gcc/clang) are installed."
   fi
   exit 1
 fi
@@ -168,6 +186,9 @@ with open('secrets.yaml', 'w') as f:
     f.write(content)
 "
   echo -e "${GREEN}  ✓ Generated clean secrets.yaml with cryptographically random keys${RESET}"
+  if [[ "$AUTO_MODE" != true ]]; then
+    echo -e "${CYAN}  (Note: Default Wi-Fi credentials in secrets.yaml are mocks for compilation. Edit before flashing to connect to your home Wi-Fi).${RESET}"
+  fi
 else
   echo -e "${GREEN}  ✓ secrets.yaml exists${RESET}"
 fi
