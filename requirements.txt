@@ -1,0 +1,2 @@
+esphome>=2024.6.0
+cryptography>=41.0.0

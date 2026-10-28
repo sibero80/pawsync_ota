@@ -15,6 +15,7 @@ import sys
 import os
 import hashlib
 import argparse
+from typing import Optional
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 LEVOIT_MD5_KEY = hashlib.md5(b"Levoit").digest()
@@ -24,9 +25,10 @@ LEGACY_IV      = b"llwantaesivv1.01"
 
 MAX_OTA_PARTITION_SIZE = 1310720  # 1.25 MB (0x140000)
 ESP_IMAGE_HEADER_MAGIC = 0xE9
+HEX_CHARS = set(b"0123456789ABCDEFabcdef")
 
 
-def dissect_vesync_ota(package_path: str, extract_path: str | None = None) -> bool:
+def dissect_vesync_ota(package_path: str, extract_path: Optional[str] = None, allow_non_esp: bool = False) -> bool:
     if not os.path.exists(package_path):
         print(f"[-] Error: File not found: {package_path}", file=sys.stderr)
         return False
@@ -63,7 +65,8 @@ def dissect_vesync_ota(package_path: str, extract_path: str | None = None) -> bo
             cipher = Cipher(algorithms.AES(k), modes.CBC(iv))
             decryptor = cipher.decryptor()
             candidate = decryptor.update(enc_header) + decryptor.finalize()
-            if candidate[0] == 0x01:
+            if (candidate[0] == 0x01 and candidate[33] == 0x00 and
+                all(b in HEX_CHARS for b in candidate[1:33])):
                 dec_header = candidate
                 key_used = name
                 break
@@ -107,7 +110,11 @@ def dissect_vesync_ota(package_path: str, extract_path: str | None = None) -> bo
     magic = raw_payload[0]
     print(f"Image Magic Byte  : 0x{magic:02X} (Expected: 0x{ESP_IMAGE_HEADER_MAGIC:02X} for ESP32 image)", "✓" if magic == ESP_IMAGE_HEADER_MAGIC else "✗")
     if magic != ESP_IMAGE_HEADER_MAGIC:
-        print("[-] WARNING: Inner binary does not begin with standard ESP32 magic byte 0xE9", file=sys.stderr)
+        if allow_non_esp:
+            print("[-] WARNING: Inner binary does not begin with standard ESP32 magic byte 0xE9 (--allow-non-esp set)", file=sys.stderr)
+        else:
+            print("[-] FAILED: Inner binary does not begin with standard ESP32 magic byte 0xE9. Use --allow-non-esp to bypass.", file=sys.stderr)
+            return False
 
     # Partition Limit Check
     headroom = MAX_OTA_PARTITION_SIZE - payload_len
@@ -120,6 +127,9 @@ def dissect_vesync_ota(package_path: str, extract_path: str | None = None) -> bo
     print(f"Payload SHA-256   : {hashlib.sha256(raw_payload).hexdigest()}")
 
     if extract_path:
+        out_dir = os.path.dirname(os.path.abspath(extract_path))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
         with open(extract_path, "wb") as f_out:
             f_out.write(raw_payload)
         print(f"Extracted Binary  : Saved raw ESP32-C3 firmware to '{extract_path}' ✓")
@@ -134,7 +144,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Dissect and verify VeSync OTA package integrity")
     parser.add_argument("package_path", nargs="?", default="pawsync_ota_update.bin", help="Path to VeSync package (.bin) (default: pawsync_ota_update.bin)")
     parser.add_argument("-x", "--extract", default=None, help="Extract inner raw ESP32 binary to specified path")
+    parser.add_argument("--allow-non-esp", action="store_true", help="Allow payload with non-standard ESP32 magic byte")
     args = parser.parse_args()
 
-    success = dissect_vesync_ota(args.package_path, args.extract)
+    success = dissect_vesync_ota(args.package_path, args.extract, args.allow_non_esp)
     sys.exit(0 if success else 1)

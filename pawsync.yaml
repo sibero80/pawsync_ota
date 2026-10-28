@@ -8,7 +8,7 @@ esphome:
   friendly_name: ${friendly_name}
   comment: "Local ESPHome firmware for Pawsync PPF-R361S Pet Feeder with On-Device 7-Plan Scheduler (v1.1.2)"
   project:
-    name: "sibero80.pawsync_esphome"
+    name: "sibero80.pawsync_ota"
     version: "1.1.2"
   min_version: 2024.6.0
   on_boot:
@@ -27,7 +27,7 @@ esphome:
             }
 
 dashboard_import:
-  package_import_url: github://sibero80/pawsync_esphome/pawsync.yaml@main
+  package_import_url: github://sibero80/pawsync_ota/pawsync.yaml@main
   import_full_config: true
 
 esp32:
@@ -35,6 +35,8 @@ esp32:
   variant: esp32c3
   framework:
     type: esp-idf
+    sdkconfig_options:
+      CONFIG_COMPILER_OPTIMIZATION_SIZE: y
   partitions: partitions.csv
 
 external_components:

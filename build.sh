@@ -5,10 +5,12 @@
 # Repository: https://github.com/sibero80/pawsync_ota
 # ==============================================================================
 
-set -euo pipefail
+set -Eeuo pipefail
 
-# Error handling trap
-trap 'echo -e "\n${RED}[!] Build script aborted or encountered an error at line ${BASH_LINENO[0]:-unknown}.${RESET}"' ERR INT TERM
+# Error & signal handling traps
+trap 'echo -e "\n${RED}[!] Build script encountered an error at line ${BASH_LINENO[0]:-unknown}.${RESET}"; exit 1' ERR
+trap 'echo -e "\n${RED}[!] Build interrupted by user.${RESET}"; exit 130' INT
+trap 'echo -e "\n${RED}[!] Build terminated.${RESET}"; exit 143' TERM
 
 # Text styling
 BOLD="\033[1m"
@@ -92,8 +94,14 @@ detect_missing_packages() {
   if ! command -v gcc &>/dev/null && ! command -v clang &>/dev/null; then
     if [[ "$(uname -s)" == "Darwin" ]]; then
       missing+=("xcode-cli-tools")
-    else
+    elif command -v apt-get &>/dev/null; then
       missing+=("build-essential")
+    elif command -v dnf &>/dev/null; then
+      missing+=("gcc make")
+    elif command -v pacman &>/dev/null; then
+      missing+=("base-devel")
+    else
+      missing+=("gcc")
     fi
   fi
   echo "${missing[@]}"
@@ -103,16 +111,18 @@ MISSING_DEPS=$(detect_missing_packages)
 if [[ -n "$MISSING_DEPS" ]]; then
   echo -e "${RED}[!] Missing required system tools: ${MISSING_DEPS}${RESET}"
   echo "Please install them via your package manager:"
-  if command -v apt-get &>/dev/null; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "  xcode-select --install"
+    if command -v brew &>/dev/null; then
+      echo "  brew install python git"
+    fi
+  elif command -v apt-get &>/dev/null; then
     echo "  sudo apt-get update && sudo apt-get install -y python3 python3-venv python3-pip git build-essential"
   elif command -v dnf &>/dev/null; then
     echo "  sudo dnf install -y python3 git gcc make"
   elif command -v pacman &>/dev/null; then
     echo "  sudo pacman -S python git base-devel"
   elif command -v brew &>/dev/null; then
-    echo "  brew install python git"
-  elif [[ "$(uname -s)" == "Darwin" ]]; then
-    echo "  xcode-select --install"
     echo "  brew install python git"
   else
     echo "  Ensure Python 3.10+ (with venv), Git, and a C compiler (gcc/clang) are installed."
@@ -137,8 +147,9 @@ echo -e "${GREEN}  ✓ Git & C toolchain available${RESET}"
 # ------------------------------------------------------------------------------
 echo -e "\n${BOLD}[2/5] Setting up isolated Python virtual environment...${RESET}"
 
-if [[ ! -d "$VENV_DIR" ]]; then
+if [[ ! -f "${VENV_DIR}/bin/python3" ]]; then
   echo "  Creating virtual environment in ${VENV_DIR}..."
+  rm -rf "$VENV_DIR"
   python3 -m venv "$VENV_DIR"
 fi
 
@@ -152,9 +163,9 @@ if ! "$VENV_PY" -c "import esphome" &>/dev/null || ! "$VENV_PY" -c "import crypt
 fi
 
 if [[ "$NEED_INSTALL" == true ]]; then
-  echo "  Installing/updating build tools in virtual environment..."
+  echo "  Installing/updating build tools in virtual environment from requirements.txt..."
   "$VENV_PIP" install --quiet --upgrade pip
-  "$VENV_PIP" install --quiet "esphome>=2024.6.0" "cryptography>=41.0.0"
+  "$VENV_PIP" install --quiet -r requirements.txt
 fi
 echo -e "${GREEN}  ✓ Virtual environment ready (ESPHome & Cryptography installed)${RESET}"
 

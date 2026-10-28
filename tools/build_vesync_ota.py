@@ -46,12 +46,16 @@ def create_vesync_ota_package(
     iv: bytes = DEFAULT_IV
 ) -> str:
     if not os.path.exists(bin_path):
-        alt_bin = ".esphome/build/pawsync-feeder/build/pawsync-feeder.bin"
-        if os.path.exists(alt_bin):
-            bin_path = alt_bin
+        if bin_path == DEFAULT_INPUT_BIN:
+            alt_bin = ".esphome/build/pawsync-feeder/build/pawsync-feeder.bin"
+            if os.path.exists(alt_bin):
+                bin_path = alt_bin
+            else:
+                print(f"Error: input binary '{bin_path}' not found", file=sys.stderr)
+                print("Did you run 'esphome compile pawsync.yaml' (or './build.sh') first?", file=sys.stderr)
+                sys.exit(1)
         else:
-            print(f"Error: input binary '{bin_path}' not found", file=sys.stderr)
-            print("Did you run 'esphome compile pawsync.yaml' (or './build.sh') first?", file=sys.stderr)
+            print(f"Error: user-specified input binary '{bin_path}' not found", file=sys.stderr)
             sys.exit(1)
 
     with open(bin_path, "rb") as f:
@@ -103,7 +107,8 @@ def create_vesync_ota_package(
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
     encryptor = cipher.encryptor()
     enc_header = encryptor.update(bytes(header)) + encryptor.finalize()
-    assert len(enc_header) == 128, f"Encrypted header size mismatch: {len(enc_header)}"
+    if len(enc_header) != 128:
+        raise RuntimeError(f"Encrypted header size mismatch: {len(enc_header)}")
 
     # 6. Assemble container: [crypto_type (1 byte)] + [enc_header (128 bytes)] + [raw firmware]
     package_data = bytes([0x01]) + enc_header + bin_data
@@ -112,9 +117,12 @@ def create_vesync_ota_package(
     # 7. Self-Verification Roundtrip
     decryptor = cipher.decryptor()
     dec_header = decryptor.update(enc_header) + decryptor.finalize()
-    assert dec_header[0] == 0x01, "Self-check failed: header[0] != 0x01"
-    assert dec_header[1:33] == md5_hex, "Self-check failed: MD5 mismatch"
-    assert dec_header[34:34 + len(model_bytes)] == model_bytes, "Self-check failed: model mismatch"
+    if dec_header[0] != 0x01:
+        raise RuntimeError("Self-check failed: header[0] != 0x01")
+    if dec_header[1:33] != md5_hex:
+        raise RuntimeError("Self-check failed: MD5 mismatch")
+    if dec_header[34:34 + len(model_bytes)] != model_bytes:
+        raise RuntimeError("Self-check failed: model mismatch")
 
     with open(output_path, "wb") as f:
         f.write(package_data)
