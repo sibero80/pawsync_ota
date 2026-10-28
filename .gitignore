@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+
+# ESPHome build cache & outputs
+.esphome/
+*.bin
+*.elf
+*.map
+
+# Secrets
+secrets.yaml
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
