@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Install System Build Prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git build-essential
+
+      - name: Run Automated CLI Build Wizard
+        run: |
+          ./build.sh --auto
+
+      - name: Validate Container Integrity
+        run: |
+          ./.venv/bin/python tools/verify_ota.py pawsync_ota_update.bin
+
+      - name: Generate Checksums
+        run: |
+          sha256sum pawsync_ota_update.bin > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            pawsync_ota_update.bin
+            checksums.txt
