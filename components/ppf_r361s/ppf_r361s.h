@@ -152,6 +152,12 @@ struct TankStorage {
   uint16_t last_consumption_day{0};
 };
 
+enum StockPartitionState : uint8_t {
+  STATE_STOCK_UNKNOWN = 0x00,
+  STATE_STOCK_INTACT = 0x01,
+  STATE_STOCK_OVERWRITTEN = 0x02,
+};
+
 class PPFR361SComponent : public Component, public uart::UARTDevice {
  public:
   void setup() override;
@@ -271,6 +277,16 @@ class PPFR361SComponent : public Component, public uart::UARTDevice {
   // Dual-Boot Wireless Rollback
   void rollback_to_stock_firmware();
 
+  // Factory Firmware & Calibration Export Bridge
+  void start_backup_http_server();
+  void stop_backup_http_server();
+  bool is_stock_partition_intact() const { return this->is_stock_intact_; }
+  void set_stock_partition_intact(bool intact) { this->is_stock_intact_ = intact; }
+  uint8_t get_stock_partition_state() const { return this->stock_partition_state_; }
+  void set_stock_partition_state(uint8_t state);
+  bool is_allow_overwrite_stock() const { return this->allow_overwrite_stock_; }
+  void set_allow_overwrite_stock(bool allow) { this->allow_overwrite_stock_ = allow; }
+
   // Schedule Engine APIs (Up to 7 Plans, 10 Meals per Plan)
   void set_active_plan(uint8_t plan_idx);
   uint8_t get_active_plan() const { return this->storage_.active_plan_idx; }
@@ -371,6 +387,10 @@ class PPFR361SComponent : public Component, public uart::UARTDevice {
   bool feed_just_finished_{false};
   MealSessionStorage meal_storage_;
   TankStorage tank_storage_;
+  void *backup_httpd_server_{nullptr};
+  bool is_stock_intact_{false};
+  uint8_t stock_partition_state_{0};
+  bool allow_overwrite_stock_{false};
 
   // Time component
   time::RealTimeClock *time_{nullptr};
