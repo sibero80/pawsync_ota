@@ -7,10 +7,10 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   name_add_mac_suffix: true
-  comment: "Local ESPHome transition firmware for Pawsync PPF-R361S Pet Feeder with Zero-Touch Dynamic Wi-Fi (v1.4.1)"
+  comment: "Local ESPHome firmware for Pawsync PPF-R361S Pet Feeder with Zero-Touch Dynamic Wi-Fi & Backup (v1.5.0)"
   project:
     name: "sibero80.pawsync_ota"
-    version: "1.4.1"
+    version: "1.5.0"
   min_version: 2024.6.0
   on_boot:
     - priority: -100.0
@@ -155,12 +155,14 @@ api:
 
 ota:
   - platform: esphome
+    password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   ap:
     ssid: "Pawsync-Feeder-Fallback"
+    password: "pawsync1234"
 
 captive_portal:
 
@@ -349,6 +351,27 @@ sensor:
     icon: "mdi:memory"
     lambda: |-
       return (float) esp_get_free_heap_size();
+    update_interval: 60s
+  - platform: template
+    name: "Max Free Heap Block"
+    id: sensor_max_free_heap_block
+    unit_of_measurement: "bytes"
+    entity_category: diagnostic
+    icon: "mdi:memory-arrow-down"
+    lambda: |-
+      return (float) heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+    update_interval: 60s
+  - platform: template
+    name: "Max lwIP Sockets"
+    id: sensor_max_lwip_sockets
+    entity_category: diagnostic
+    icon: "mdi:lan-connect"
+    lambda: |-
+      #if defined(USE_ESP_IDF)
+      return (float) (CONFIG_LWIP_MAX_SOCKETS);
+      #else
+      return 16.0f;
+      #endif
     update_interval: 60s
 
 binary_sensor:

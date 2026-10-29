@@ -42,6 +42,7 @@
 #include "esphome/components/number/number.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "esphome/components/time/real_time_clock.h"
+#include "ppf_r361s_backup_server.h"
 
 #include <vector>
 #include <map>
@@ -160,6 +161,9 @@ enum StockPartitionState : uint8_t {
 
 class PPFR361SComponent : public Component, public uart::UARTDevice {
  public:
+  PPFR361SComponent();
+  ~PPFR361SComponent();
+
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -387,6 +391,7 @@ class PPFR361SComponent : public Component, public uart::UARTDevice {
   bool feed_just_finished_{false};
   MealSessionStorage meal_storage_;
   TankStorage tank_storage_;
+  PPFR361SBackupServer *backup_server_{nullptr};
   void *backup_httpd_server_{nullptr};
   bool is_stock_intact_{false};
   uint8_t stock_partition_state_{0};
