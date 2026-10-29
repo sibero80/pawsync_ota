@@ -1893,7 +1893,7 @@ void PPFR361SComponent::start_backup_http_server() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 8088;
   config.ctrl_port = 32769;
-  config.max_open_sockets = 3;
+  config.max_open_sockets = 1;
   config.lru_purge_enable = true;
   config.stack_size = 4096;
 

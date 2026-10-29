@@ -6,10 +6,10 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  comment: "Local ESPHome transition firmware for Pawsync PPF-R361S Pet Feeder with Zero-Touch Dynamic Wi-Fi (v1.4.0)"
+  comment: "Local ESPHome transition firmware for Pawsync PPF-R361S Pet Feeder with Zero-Touch Dynamic Wi-Fi (v1.4.1)"
   project:
     name: "sibero80.pawsync_ota"
-    version: "1.4.0"
+    version: "1.4.1"
   min_version: 2024.6.0
   on_boot:
     - priority: -100.0
@@ -37,6 +37,7 @@ esp32:
     type: esp-idf
     sdkconfig_options:
       CONFIG_COMPILER_OPTIMIZATION_SIZE: y
+      CONFIG_LWIP_MAX_SOCKETS: "16"
   partitions: partitions.csv
 
 external_components:
