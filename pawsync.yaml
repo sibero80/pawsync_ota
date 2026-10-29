@@ -6,6 +6,7 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
+  name_add_mac_suffix: true
   comment: "Local ESPHome transition firmware for Pawsync PPF-R361S Pet Feeder with Zero-Touch Dynamic Wi-Fi (v1.4.1)"
   project:
     name: "sibero80.pawsync_ota"
